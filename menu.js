@@ -11,39 +11,27 @@ class CookieClickerMenu {
         // Get DOM elements
         this.startBtn = document.getElementById('startGame');
         this.loadBtn = document.getElementById('loadGame');
-        this.settingsBtn = document.getElementById('settings');
         this.creditsBtn = document.getElementById('credits');
         
         // Modals
         this.loadModal = document.getElementById('loadModal');
-        this.settingsModal = document.getElementById('settingsModal');
         this.creditsModal = document.getElementById('creditsModal');
         
         // Close buttons
         this.closeLoadModal = document.getElementById('closeLoadModal');
-        this.closeSettingsModal = document.getElementById('closeSettingsModal');
         this.closeCreditsModal = document.getElementById('closeCreditsModal');
         
-        // Settings elements
-        this.soundVolume = document.getElementById('soundVolume');
-        this.musicVolume = document.getElementById('musicVolume');
-        this.autoSave = document.getElementById('autoSave');
-        this.animations = document.getElementById('animations');
-        
         this.bindEvents();
-        this.loadSettings();
     }
 
     bindEvents() {
         // Main menu buttons
         this.startBtn.addEventListener('click', () => this.startNewGame());
         this.loadBtn.addEventListener('click', () => this.showLoadModal());
-        this.settingsBtn.addEventListener('click', () => this.showSettingsModal());
         this.creditsBtn.addEventListener('click', () => this.showCreditsModal());
         
         // Modal close events
         this.closeLoadModal.addEventListener('click', () => this.hideModal(this.loadModal));
-        this.closeSettingsModal.addEventListener('click', () => this.hideModal(this.settingsModal));
         this.closeCreditsModal.addEventListener('click', () => this.hideModal(this.creditsModal));
         
         // Close modal when clicking outside
@@ -53,11 +41,6 @@ class CookieClickerMenu {
             }
         });
         
-        // Settings events
-        this.soundVolume.addEventListener('input', (e) => this.updateVolumeDisplay(e.target, 'sound'));
-        this.musicVolume.addEventListener('input', (e) => this.updateVolumeDisplay(e.target, 'music'));
-        this.autoSave.addEventListener('change', () => this.saveSettings());
-        this.animations.addEventListener('change', () => this.saveSettings());
         
         // Save slot events
         document.querySelectorAll('.load-slot-btn').forEach((btn, index) => {
@@ -75,8 +58,11 @@ class CookieClickerMenu {
         
         // Simulate game loading
         setTimeout(() => {
-            // Redirect to the main game
-            window.location.href = 'game.html';
+            alert('Game will start here! (No game file currently)');
+            
+            // Reset button
+            this.startBtn.innerHTML = '<span class="btn-icon">🎮</span><span class="btn-text">Start New Game</span>';
+            this.startBtn.disabled = false;
         }, 1500);
     }
 
@@ -85,9 +71,6 @@ class CookieClickerMenu {
         this.updateSaveSlots();
     }
 
-    showSettingsModal() {
-        this.settingsModal.style.display = 'block';
-    }
 
     showCreditsModal() {
         this.creditsModal.style.display = 'block';
@@ -97,63 +80,6 @@ class CookieClickerMenu {
         modal.style.display = 'none';
     }
 
-    updateVolumeDisplay(slider, type) {
-        const value = slider.value;
-        const display = slider.parentElement.querySelector('.volume-value');
-        display.textContent = value + '%';
-        
-        // Save setting
-        this.saveSettings();
-        
-        // Apply volume change (placeholder for actual audio implementation)
-        console.log(`${type} volume set to ${value}%`);
-    }
-
-    saveSettings() {
-        const settings = {
-            soundVolume: this.soundVolume.value,
-            musicVolume: this.musicVolume.value,
-            autoSave: this.autoSave.checked,
-            animations: this.animations.checked
-        };
-        
-        localStorage.setItem('cookieClickerSettings', JSON.stringify(settings));
-        
-        // Apply animation setting
-        if (!settings.animations) {
-            document.body.style.animation = 'none';
-            document.querySelector('.cookie-logo').style.animation = 'none';
-        } else {
-            document.body.style.animation = '';
-            document.querySelector('.cookie-logo').style.animation = 'bounce 2s ease-in-out infinite';
-        }
-    }
-
-    loadSettings() {
-        const settings = JSON.parse(localStorage.getItem('cookieClickerSettings') || '{}');
-        
-        if (settings.soundVolume !== undefined) {
-            this.soundVolume.value = settings.soundVolume;
-            this.updateVolumeDisplay(this.soundVolume, 'sound');
-        }
-        
-        if (settings.musicVolume !== undefined) {
-            this.musicVolume.value = settings.musicVolume;
-            this.updateVolumeDisplay(this.musicVolume, 'music');
-        }
-        
-        if (settings.autoSave !== undefined) {
-            this.autoSave.checked = settings.autoSave;
-        }
-        
-        if (settings.animations !== undefined) {
-            this.animations.checked = settings.animations;
-            if (!settings.animations) {
-                document.body.style.animation = 'none';
-                document.querySelector('.cookie-logo').style.animation = 'none';
-            }
-        }
-    }
 
     loadSaveData() {
         // Check for existing save data
@@ -206,12 +132,10 @@ class CookieClickerMenu {
         
         try {
             const data = JSON.parse(saveData);
+            alert(`Loading game from slot ${slotNumber}!\nCookies: ${this.formatNumber(data.cookies || 0)}\nCPS: ${this.formatNumber(data.cps || 0)}`);
             
-            // Set the active save slot for the game to load
-            localStorage.setItem('activeSaveSlot', slotNumber.toString());
-            
-            // Redirect to game
-            window.location.href = 'game.html';
+            // Here you would typically load the game with this data
+            this.hideModal(this.loadModal);
         } catch (e) {
             alert('Error loading save data!');
             console.error('Save data error:', e);
@@ -231,7 +155,6 @@ class CookieClickerMenu {
         const cookieEmojis = ['🍪', '🥠', '🧁', '🍩', '🎂'];
         
         setInterval(() => {
-            if (!this.animations || !this.animations.checked) return;
             
             const cookie = document.createElement('div');
             cookie.className = 'falling-cookie';
@@ -280,11 +203,6 @@ class CookieClickerMenu {
                 break;
             case '3':
                 if (!document.querySelector('.modal[style*="block"]')) {
-                    this.showSettingsModal();
-                }
-                break;
-            case '4':
-                if (!document.querySelector('.modal[style*="block"]')) {
                     this.showCreditsModal();
                 }
                 break;
@@ -322,8 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Keyboard shortcuts:');
     console.log('1 - Start New Game');
     console.log('2 - Load Game');
-    console.log('3 - Settings');
-    console.log('4 - Credits');
+    console.log('3 - Credits');
     console.log('ESC - Close Modal');
     console.log('ENTER - Start Game');
 });
