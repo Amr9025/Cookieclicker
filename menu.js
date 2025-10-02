@@ -1,5 +1,13 @@
 // Cookie Clicker Start Menu JavaScript
 
+// Small helpers
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+const show = el => el && (el.style.display = 'block');
+const hide = el => el && (el.style.display = 'none');
+const isAnyModalOpen = () => !!$('.modal[style*="block"]');
+const clampNumber = n => (Number.isFinite(n) ? n : 0);
+
 class CookieClickerMenu {
     constructor() {
         this.init();
@@ -9,17 +17,17 @@ class CookieClickerMenu {
 
     init() {
         // Get DOM elements
-        this.startBtn = document.getElementById('startGame');
-        this.loadBtn = document.getElementById('loadGame');
-        this.creditsBtn = document.getElementById('credits');
+        this.startBtn = $('#startGame');
+        this.loadBtn = $('#loadGame');
+        this.creditsBtn = $('#credits');
         
         // Modals
-        this.loadModal = document.getElementById('loadModal');
-        this.creditsModal = document.getElementById('creditsModal');
+        this.loadModal = $('#loadModal');
+        this.creditsModal = $('#creditsModal');
         
         // Close buttons
-        this.closeLoadModal = document.getElementById('closeLoadModal');
-        this.closeCreditsModal = document.getElementById('closeCreditsModal');
+        this.closeLoadModal = $('#closeLoadModal');
+        this.closeCreditsModal = $('#closeCreditsModal');
         
         this.bindEvents();
     }
@@ -31,19 +39,17 @@ class CookieClickerMenu {
         this.creditsBtn.addEventListener('click', () => this.showCreditsModal());
         
         // Modal close events
-        this.closeLoadModal.addEventListener('click', () => this.hideModal(this.loadModal));
-        this.closeCreditsModal.addEventListener('click', () => this.hideModal(this.creditsModal));
+        this.closeLoadModal.addEventListener('click', () => hide(this.loadModal));
+        this.closeCreditsModal.addEventListener('click', () => hide(this.creditsModal));
         
         // Close modal when clicking outside
         window.addEventListener('click', (e) => {
-            if (e.target.classList.contains('modal')) {
-                this.hideModal(e.target);
-            }
+            if (e.target.classList.contains('modal')) hide(e.target);
         });
         
         
         // Save slot events
-        document.querySelectorAll('.load-slot-btn').forEach((btn, index) => {
+        $$('.load-slot-btn').forEach((btn, index) => {
             btn.addEventListener('click', () => this.loadGame(index + 1));
         });
         
@@ -67,31 +73,28 @@ class CookieClickerMenu {
     }
 
     showLoadModal() {
-        this.loadModal.style.display = 'block';
+        show(this.loadModal);
         this.updateSaveSlots();
     }
 
 
     showCreditsModal() {
-        this.creditsModal.style.display = 'block';
+        show(this.creditsModal);
     }
 
-    hideModal(modal) {
-        modal.style.display = 'none';
-    }
+    hideModal(modal) { hide(modal); }
 
 
     loadSaveData() {
         // Check for existing save data
         for (let i = 1; i <= 3; i++) {
-            const saveData = localStorage.getItem(`cookieClickerSave${i}`);
-            if (saveData) {
-                try {
-                    const data = JSON.parse(saveData);
-                    this.updateSaveSlot(i, data);
-                } catch (e) {
-                    console.error(`Error loading save slot ${i}:`, e);
-                }
+            const raw = localStorage.getItem(`cookieClickerSave${i}`);
+            if (!raw) { this.updateSaveSlot(i, null); continue; }
+            try {
+                this.updateSaveSlot(i, JSON.parse(raw));
+            } catch (e) {
+                console.error(`Error loading save slot ${i}:`, e);
+                this.updateSaveSlot(i, null);
             }
         }
     }
@@ -111,8 +114,8 @@ class CookieClickerMenu {
         
         if (data) {
             const date = new Date(data.timestamp || Date.now());
-            dateElement.textContent = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-            progressElement.textContent = `Cookies: ${this.formatNumber(data.cookies || 0)} | CPS: ${this.formatNumber(data.cps || 0)}`;
+            dateElement.textContent = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+            progressElement.textContent = `Cookies: ${this.formatNumber(clampNumber(data.cookies))} | CPS: ${this.formatNumber(clampNumber(data.cps))}`;
             loadButton.disabled = false;
             loadButton.textContent = 'Load';
         } else {
@@ -132,10 +135,8 @@ class CookieClickerMenu {
         
         try {
             const data = JSON.parse(saveData);
-            alert(`Loading game from slot ${slotNumber}!\nCookies: ${this.formatNumber(data.cookies || 0)}\nCPS: ${this.formatNumber(data.cps || 0)}`);
-            
-            // Here you would typically load the game with this data
-            this.hideModal(this.loadModal);
+            alert(`Loading game from slot ${slotNumber}!\nCookies: ${this.formatNumber(clampNumber(data.cookies))}\nCPS: ${this.formatNumber(clampNumber(data.cps))}`);
+            hide(this.loadModal);
         } catch (e) {
             alert('Error loading save data!');
             console.error('Save data error:', e);
@@ -152,6 +153,7 @@ class CookieClickerMenu {
 
     createCookieRain() {
         const cookieRain = document.querySelector('.cookie-rain');
+        if (!cookieRain) return;
         const cookieEmojis = ['🍪', '🥠', '🧁', '🍩', '🎂'];
         
         setInterval(() => {
@@ -166,47 +168,20 @@ class CookieClickerMenu {
             cookieRain.appendChild(cookie);
             
             // Remove cookie after animation
-            setTimeout(() => {
-                if (cookie.parentNode) {
-                    cookie.parentNode.removeChild(cookie);
-                }
-            }, 5000);
+            setTimeout(() => cookie.remove(), 5000);
         }, 800);
     }
 
     handleKeyboard(e) {
-        // Keyboard shortcuts
-        switch(e.key) {
-            case 'Escape':
-                // Close any open modal
-                document.querySelectorAll('.modal').forEach(modal => {
-                    if (modal.style.display === 'block') {
-                        this.hideModal(modal);
-                    }
-                });
-                break;
-            case 'Enter':
-                // Start game if no modal is open
-                if (!document.querySelector('.modal[style*="block"]')) {
-                    this.startNewGame();
-                }
-                break;
-            case '1':
-                if (!document.querySelector('.modal[style*="block"]')) {
-                    this.startNewGame();
-                }
-                break;
-            case '2':
-                if (!document.querySelector('.modal[style*="block"]')) {
-                    this.showLoadModal();
-                }
-                break;
-            case '3':
-                if (!document.querySelector('.modal[style*="block"]')) {
-                    this.showCreditsModal();
-                }
-                break;
-        }
+        const actions = {
+            Escape: () => $$('.modal').forEach(m => hide(m)),
+            Enter: () => !isAnyModalOpen() && this.startNewGame(),
+            '1': () => !isAnyModalOpen() && this.startNewGame(),
+            '2': () => !isAnyModalOpen() && this.showLoadModal(),
+            '3': () => !isAnyModalOpen() && this.showCreditsModal(),
+        };
+        const action = actions[e.key];
+        if (action) action();
     }
 
     // Demo function to create sample save data for testing
@@ -230,40 +205,18 @@ class CookieClickerMenu {
 // Initialize the menu when the page loads
 document.addEventListener('DOMContentLoaded', () => {
     const menu = new CookieClickerMenu();
-    
-    // Add demo save data for testing (remove in production)
-    // Uncomment the line below to create demo save data
-    // menu.createDemoSaveData();
-    
-    // Add some fun console messages
-    console.log('🍪 Cookie Clicker Menu Loaded!');
-    console.log('Keyboard shortcuts:');
-    console.log('1 - Start New Game');
-    console.log('2 - Load Game');
-    console.log('3 - Credits');
-    console.log('ESC - Close Modal');
-    console.log('ENTER - Start Game');
-});
 
-// Add some extra visual effects
-document.addEventListener('DOMContentLoaded', () => {
-    // Add hover sound effect placeholder
-    document.querySelectorAll('.menu-btn').forEach(btn => {
-        btn.addEventListener('mouseenter', () => {
-            // Placeholder for hover sound effect
-            console.log('🔊 Hover sound effect');
-        });
-        
-        btn.addEventListener('click', () => {
-            // Placeholder for click sound effect
-            console.log('🔊 Click sound effect');
-        });
-    });
-    
-    // Add particle effect on button clicks
-    document.querySelectorAll('.menu-btn').forEach(btn => {
+    // Optional: menu.createDemoSaveData();
+
+    console.log('🍪 Cookie Clicker Menu Loaded!');
+    console.log('Keyboard shortcuts: 1 Start | 2 Load | 3 Credits | ESC Close | ENTER Start');
+
+    // Extra visual/sound hooks
+    $$('.menu-btn').forEach(btn => {
+        btn.addEventListener('mouseenter', () => console.log('🔊 Hover sound effect'));
         btn.addEventListener('click', (e) => {
-            createClickParticles(e.target);
+            console.log('🔊 Click sound effect');
+            createClickParticles(e.currentTarget);
         });
     });
 });
