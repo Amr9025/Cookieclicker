@@ -20,6 +20,23 @@ class CookieClickerMenu {
         this.startBtn = $('#startGame');
         this.loadBtn = $('#loadGame');
         this.creditsBtn = $('#credits');
+        this.startMenu = $('.start-menu');
+        this.gameScreen = $('#gameScreen');
+        this.cookieBtn = $('#cookieBtn');
+        this.pointsEl = $('#points');
+        this.points = 0;
+        this.generatorList = $('#generatorList');
+        this.generators = [
+            { id: 'cursor', name: 'Cursor', baseCost: 15, qty: 0, cps: 1 },
+            { id: 'grandma', name: 'Grandma', baseCost: 100, qty: 0, cps: 5 },
+            { id: 'farm', name: 'Farm', baseCost: 1100, qty: 0, cps: 25 },
+            { id: 'mine', name: 'Mine', baseCost: 12000, qty: 0, cps: 120 },
+            { id: 'factory', name: 'Factory', baseCost: 130000, qty: 0, cps: 500 },
+            { id: 'bank', name: 'Bank', baseCost: 1400000, qty: 0, cps: 2000 },
+            { id: 'temple', name: 'Temple', baseCost: 20000000, qty: 0, cps: 8000 },
+            { id: 'wizard', name: 'Wizard Tower', baseCost: 330000000, qty: 0, cps: 40000 },
+        ];
+        this.tickMs = 1000;
         
         // Modals
         this.loadModal = $('#loadModal');
@@ -30,6 +47,7 @@ class CookieClickerMenu {
         this.closeCreditsModal = $('#closeCreditsModal');
         
         this.bindEvents();
+        this.renderGenerators();
     }
 
     bindEvents() {
@@ -58,18 +76,19 @@ class CookieClickerMenu {
     }
 
     startNewGame() {
-        // Add loading animation
-        this.startBtn.innerHTML = '<span class="btn-icon">⏳</span><span class="btn-text">Loading...</span>';
-        this.startBtn.disabled = true;
-        
-        // Simulate game loading
-        setTimeout(() => {
-            alert('Game will start here! (No game file currently)');
-            
-            // Reset button
-            this.startBtn.innerHTML = '<span class="btn-icon">🎮</span><span class="btn-text">Start New Game</span>';
-            this.startBtn.disabled = false;
-        }, 1500);
+        hide(this.startMenu);
+        show(this.gameScreen);
+        this.points = 0;
+        if (this.pointsEl) this.pointsEl.textContent = this.points;
+        if (this.cookieBtn && !this.cookieBound) {
+            this.cookieBtn.addEventListener('click', () => {
+                this.points += 1;
+                this.pointsEl.textContent = this.points;
+                this.refreshShopButtons();
+            });
+            this.cookieBound = true;
+        }
+        this.startProductionLoop();
     }
 
     showLoadModal() {
@@ -144,11 +163,12 @@ class CookieClickerMenu {
     }
 
     formatNumber(num) {
-        if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
-        if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
-        if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
-        if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
-        return num.toString();
+        const n = Math.floor(num);
+        if (n >= 1e12) return Math.floor(n / 1e12) + 'T';
+        if (n >= 1e9) return Math.floor(n / 1e9) + 'B';
+        if (n >= 1e6) return Math.floor(n / 1e6) + 'M';
+        if (n >= 1e3) return Math.floor(n / 1e3) + 'K';
+        return String(n);
     }
 
     createCookieRain() {
@@ -182,6 +202,74 @@ class CookieClickerMenu {
         };
         const action = actions[e.key];
         if (action) action();
+    }
+
+    // ---- Generators (Step 2) ----
+    renderGenerators() {
+        if (!this.generatorList) return;
+        this.generatorList.innerHTML = '';
+        this.generators.forEach((g, idx) => {
+            const div = document.createElement('div');
+            div.className = 'generator-item';
+            div.innerHTML = `
+                <div>
+                    <strong>${g.name}</strong><br/>
+                    <small>Owned: <span data-q='${idx}'>${g.qty}</span> | CPS: ${g.cps}</small>
+                </div>
+                <button data-buy='${idx}'>Buy (${this.formatNumber(this.getCost(g))})</button>
+            `;
+            this.generatorList.appendChild(div);
+        });
+        // Delegate click once; keep one handler
+        if (!this.generatorClickBound) {
+            this.generatorList.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-buy]');
+                if (!btn) return;
+                const idx = Number(btn.getAttribute('data-buy'));
+                this.buyGenerator(idx);
+            });
+            this.generatorClickBound = true;
+        }
+        this.refreshShopButtons();
+    }
+
+    getCost(g) {
+        // Basic exponential scaling
+        return Math.floor(g.baseCost * Math.pow(1.15, g.qty));
+    }
+
+    buyGenerator(idx) {
+        const g = this.generators[idx];
+        const cost = this.getCost(g);
+        if (this.points < cost) return;
+        this.points -= cost;
+        g.qty += 1;
+        if (this.pointsEl) this.pointsEl.textContent = this.points;
+        this.renderGenerators();
+    }
+
+    startProductionLoop() {
+        if (this.productionTimer) clearInterval(this.productionTimer);
+        this.productionTimer = setInterval(() => {
+            const cps = this.generators.reduce((sum, g) => sum + (g.cps * g.qty), 0);
+            this.points += Math.floor(cps);
+            if (this.pointsEl) this.pointsEl.textContent = Math.floor(this.points);
+            this.refreshShopButtons();
+        }, this.tickMs);
+    }
+
+    refreshShopButtons() {
+        if (!this.generatorList) return;
+        const buttons = this.generatorList.querySelectorAll('button[data-buy]');
+        buttons.forEach((btn) => {
+            const idx = Number(btn.getAttribute('data-buy'));
+            const g = this.generators[idx];
+            const cost = this.getCost(g);
+            btn.disabled = this.points < cost;
+            btn.textContent = `Buy (${this.formatNumber(cost)})`;
+            const q = this.generatorList.querySelector(`span[data-q='${idx}']`);
+            if (q) q.textContent = g.qty;
+        });
     }
 
     // Demo function to create sample save data for testing
